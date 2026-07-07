@@ -1,34 +1,28 @@
 #!/usr/bin/env bash
-# Step 4 — run GrafAnc on the exported PLINK fileset.
-# Run in an RW Cloud Analysis terminal (CPU-only is fine; this is fast).
+# Step 4 — run GrafAnc on the QC'd ancestry-SNP PLINK set.
+# Run in an RW "Cloud Analysis" terminal.  Fast and CPU-only.
 set -euo pipefail
+source "$(dirname "$0")/../config/config.sh"
+export GRAFPATH="${GRAFANC_DIR}/cpp"
 
-: "${WORKSPACE_BUCKET:?WORKSPACE_BUCKET not set}"
+WORK="${HOME}/grafanc_run"
+mkdir -p "${WORK}/data" "${WORK}/out"
 
-WORK=~/grafanc
-PLINK_PREFIX="$WORK/data/aou_v8_grafanc_aims"
-OUT_DIR="$WORK/out"
-mkdir -p "$(dirname "$PLINK_PREFIX")" "$OUT_DIR"
+# 1. Pull the QC'd PLINK set from the bucket.
+gsutil -m cp "${GA_QC_DIR}/aou_v9_anc_snps_qc."{bed,bim,fam} "${WORK}/data/"
 
-# 1. Pull the PLINK fileset down from the workspace bucket.
-gsutil -m cp "$WORKSPACE_BUCKET/grafanc/aou_v8_grafanc_aims."{bed,bim,fam} \
-        "$(dirname "$PLINK_PREFIX")/"
+# 2. Run GrafAnc.  With ~245k+ WGS + array participants this is a large N;
+#    raise --maxmem and let GrafAnc auto-batch, or pin --samples per batch.
+"${GRAFANC_DIR}/cpp/grafanc" \
+    "${WORK}/data/aou_v9_anc_snps_qc.bed" \
+    "${WORK}/out/aou_v9_grafanc_pops.txt" \
+    --maxmem  "<max_mem_MB e.g. 32000>" \
+    --threads "${N_THREADS}"
 
-# 2. Build GrafAnc if not already built.
-cd "$WORK/GrafAnc"
-if [[ ! -x ./grafanc ]]; then
-  make            # or `cmake . && make` — check the repo's README
-fi
+# 3. Stash results in the bucket.
+gsutil -m cp "${WORK}/out/aou_v9_grafanc_pops.txt" "${GA_RESULTS_DIR}/"
+echo "GrafAnc results → ${GA_RESULTS_DIR}/aou_v9_grafanc_pops.txt"
 
-# 3. Run.  Flags below mirror the GrafAnc README — confirm against the
-#    version you cloned, since flag names occasionally change.
-./grafanc \
-    --bfile  "$PLINK_PREFIX" \
-    --out    "$OUT_DIR/aou_v8_grafanc" \
-    --threads "<num_threads e.g. 8>"
-
-# 4. Stash results back in the bucket so they outlive the VM.
-gsutil -m cp "$OUT_DIR"/aou_v8_grafanc* \
-        "$WORKSPACE_BUCKET/grafanc/results/"
-
-echo "Results: $WORKSPACE_BUCKET/grafanc/results/"
+# The output table has one row per participant with columns:
+#   Sample #SNPs GD1 GD2 GD3 EA1..EA4 AF1..AF3 EU1..EU3 SA1 SA2
+#   IC1..IC3 Pe Pf Pa RawPe RawPf RawPa AncGroupID
