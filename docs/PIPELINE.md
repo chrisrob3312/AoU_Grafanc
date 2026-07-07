@@ -51,6 +51,13 @@ Deliberately light, per the GrafAnc docs (tolerates missingness, no LD pruning):
     with meaningful SAS/EAS/MEN/OCN ancestry is *not* a clean AFR-EUR(-AMR)
     mixture and is dropped to `multiracial_other`.
 - A participant qualifying for both modes defaults to **3-way** (more general).
+- **Marker set for step 6 is a flag** (`ancsnp` | `genomewide` | `both`). The
+  ~282k ancestry SNPs are fine for global proportions and need no LD pruning
+  (already selected for near-linkage-equilibrium). The `genomewide` path uses a
+  denser, **LD-pruned** common-variant set (ADMIXTURE, unlike GrafAnc, assumes
+  markers in linkage equilibrium) for tighter separation of the "other"
+  superpops — which makes the `OTHER_MAX` gate more reliable. `both` runs each
+  and feeds the genome-wide Q to step 7 by default (`PRIMARY_MARKERSET` overrides).
 
 ## 3. Reference panels (step 8)
 

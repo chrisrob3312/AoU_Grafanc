@@ -2,6 +2,14 @@
 Step 2 — extract the 282,424 GrafAnc ancestry SNPs for EVERY AoU v9 participant
 that has imputed-array OR WGS data, and union the two sources.
 
+In plain terms (for a shell/R reader): Hail is a Python library for genomics at
+scale. A "MatrixTable" (MT) is like a giant genotype matrix — variants down the
+rows, samples across the columns — stored across a Spark/Dataproc cluster so it
+doesn't fit-in-memory the way an R data.frame would. A "VDS" is AoU's compressed
+WGS representation; `to_dense_mt` turns a slice of it into a normal genotype
+matrix. We keep only the rows (variants) that are GrafAnc ancestry SNPs, then
+stack the WGS and array cohorts side by side (union of columns/participants).
+
 Run on a Hail / Dataproc cluster in the RW.  Cost is driven by VDS/MT I/O,
 not the tiny SNP count.
 

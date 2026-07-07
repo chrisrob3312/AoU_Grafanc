@@ -20,6 +20,12 @@ Built for the Verily Researcher Workbench.
 5. **Post-process**: propagate calls to uncalled variants by nearest tract, then
    format for Tractor.
 
+## Before you run
+
+See **[`docs/RUNBOOK.md`](docs/RUNBOOK.md)** for the pre-flight checklist (what
+you must provide), how to get your reference panels and the tools into the
+Verily Workbench, and which environment each step runs in.
+
 ## Run order
 
 | Step | File | Env |
@@ -30,7 +36,7 @@ Built for the Verily Researcher Workbench.
 | 3 | `notebooks/03_qc_and_export.py` | Hail / Dataproc |
 | 4 | `scripts/04_run_grafanc.sh` | RW terminal |
 | 5 | `notebooks/05_categorize_cohorts.py` | Jupyter (pandas) |
-| 6 | `admixture/06_multiracial_supervised_admixture.sh` | RW terminal (PLINK + ADMIXTURE) |
+| 6 | `admixture/06_multiracial_supervised_admixture.sh <ancsnp\|genomewide\|both>` | RW terminal (PLINK + ADMIXTURE) |
 | 7 | `notebooks/07_define_flare_cohorts.py` | Jupyter (pandas) |
 | 8 | `flare/ref_panel/08_build_ref_panels.sh` | RW terminal (bcftools + SHAPEIT5) |
 | 9 | `flare/09_phase_target.sh <cohort> <prefix>` | RW terminal |

@@ -54,17 +54,26 @@ def write_tractor_matrices(hap_alleles, hap_ancestry, out_prefix, labels=ANCESTR
     pos = merged["pos"].values
     samples = sorted({c.rsplit("_hap", 1)[0] for c in hap_alleles.columns if c != "pos"})
 
+    # Plain terms: for each ancestry k (EUR/AFR/AMR) we build two matrices, one
+    # row per variant, one column per individual:
+    #   hapcount = how many of the person's 2 haplotypes are of ancestry k here
+    #              (0, 1, or 2)
+    #   dosage   = how many ALT alleles the person carries that sit on an
+    #              ancestry-k haplotype here (0, 1, or 2)
+    # Tractor's regression uses exactly these per-ancestry counts.
     for k, lab in labels.items():
         dosage = {"pos": pos}
         hapcount = {"pos": pos}
         for s in samples:
             dos = np.zeros(len(pos)); hc = np.zeros(len(pos))
             for hap in (0, 1):
+                # allele: 0=REF, 1=ALT on this haplotype at each variant.
                 allele = merged[f"{s}_hap{hap}_al"].values
+                # anc: which ancestry index this haplotype was painted at each variant.
                 anc    = merged[f"{s}_hap{hap}_an"].values
-                from_k = (anc == k)
-                hc  += from_k.astype(int)
-                dos += ((allele == 1) & from_k).astype(int)   # ALT copies from anc k
+                from_k = (anc == k)                            # True where this hap is ancestry k
+                hc  += from_k.astype(int)                      # count the haplotype
+                dos += ((allele == 1) & from_k).astype(int)    # count ALT copies on ancestry-k haps
             dosage[s] = dos.astype(int)
             hapcount[s] = hc.astype(int)
         pd.DataFrame(dosage).to_csv(f"{out_prefix}.anc{k}_{lab}.dosage.txt",

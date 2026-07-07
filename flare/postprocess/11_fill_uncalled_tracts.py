@@ -53,29 +53,59 @@ def flare_to_tracts(flare_anc_vcf):
 
 
 def build_segments(marker_df):
-    """Collapse consecutive equal-ancestry markers into [start,end,anc] tracts."""
+    """
+    Collapse consecutive equal-ancestry markers into continuous [start,end,anc]
+    tracts.
+
+    Plain terms: FLARE gives us an ancestry label at each marker along the
+    chromosome, e.g.
+        pos 100=AFR, 200=AFR, 300=EUR, 400=EUR, 500=AFR
+    Local ancestry only changes at recombination breakpoints, so runs of the
+    same label are one tract. We turn the per-marker list into:
+        AFR from 100-250, EUR from 251-450, AFR from 451-end
+    (the 250/450 cut points are midpoints between the last marker of one tract
+    and the first of the next, so every base in between belongs to exactly one
+    tract and there are no gaps).
+    """
+    # Drop markers with no call and sort by position (defensive; FLARE is sorted).
     m = marker_df.dropna().sort_values("pos").reset_index(drop=True)
     if m.empty:
         return pd.DataFrame(columns=["start", "end", "anc"])
+
+    # `change` increments every time the ancestry label differs from the previous
+    # row, giving each run of identical labels a unique group number. Grouping by
+    # it collapses each run into one row: its min pos, max pos, and the label.
     change = m["anc"].ne(m["anc"].shift()).cumsum()
     segs = m.groupby(change).agg(start=("pos", "min"),
                                  end=("pos", "max"),
                                  anc=("anc", "first")).reset_index(drop=True)
-    # Extend each segment's boundary to the midpoint with its neighbor so every
-    # inter-marker position is covered by exactly one tract.
+
+    # Now widen each tract so consecutive tracts touch with no gap. For each
+    # adjacent pair, the boundary is the midpoint between one tract's last marker
+    # (`end`) and the next tract's first marker (`start`).
     mids = ((segs["end"].values[:-1] + segs["start"].values[1:]) / 2).astype(int)
-    segs.loc[:len(mids) - 1, "end"] = mids
-    segs.loc[1:, "start"] = mids + 1
-    segs.loc[0, "start"] = 0
-    segs.loc[len(segs) - 1, "end"] = np.iinfo(np.int64).max
+    segs.loc[:len(mids) - 1, "end"] = mids        # each tract ends at the midpoint...
+    segs.loc[1:, "start"] = mids + 1              # ...and the next starts just after
+    segs.loc[0, "start"] = 0                       # first tract runs from the chrom start
+    segs.loc[len(segs) - 1, "end"] = np.iinfo(np.int64).max  # last runs to the chrom end
     return segs
 
 
 def assign_variant_ancestry(segments, variant_positions):
-    """For each target variant position, return the enclosing tract's ancestry."""
+    """
+    For each target variant position, return the ancestry of the tract it sits in.
+
+    Plain terms: given the tract table from build_segments (sorted, gap-free) and
+    a list of variant positions, find which tract each position falls in and
+    return that tract's ancestry label. This is the "label the uncalled variant
+    by the tract it's closest to / inside" step.
+    """
     starts = segments["start"].values
+    # np.searchsorted finds, for each variant position, where it would slot into
+    # the sorted list of tract start positions. "-1" turns that into the index of
+    # the tract whose start is <= the position, i.e. the enclosing tract.
     idx = np.searchsorted(starts, variant_positions, side="right") - 1
-    idx = np.clip(idx, 0, len(segments) - 1)
+    idx = np.clip(idx, 0, len(segments) - 1)      # guard the edges
     return segments["anc"].values[idx]
 
 
