@@ -37,10 +37,19 @@ Deliberately light, per the GrafAnc docs (tolerates missingness, no LD pruning):
   components (European, African, East-Asian), so AMR admixture isn't directly
   readable. We resolve 800 with **supervised ADMIXTURE** over 7 superpops. This
   is why step 6 exists rather than reading AMR straight from GrafAnc.
-- **Thresholds** (`THREE_WAY_MIN_SUM`, `EACH_MIN`, `TWO_WAY_MIN_SUM`, `AMR_MAX`
-  in step 7) are placeholders — set them to match your manuscript's admixture
-  definitions. Current defaults: 3-way requires AFR+EUR+AMR ≥ 0.90 with each
-  ≥ 0.05; 2-way requires AFR+EUR ≥ 0.90 with AMR < 0.05.
+- **Supervised mode also fixes cluster identity.** Running ADMIXTURE with the
+  reference panels included and fixed labels (the `.pop` file) means each Q
+  column *is* a named superpop — no post-hoc guessing which cluster is AMR vs
+  AFR. Step 7 addresses columns by name via `superpop_column_order.txt`.
+- **Thresholds** (step 7) are placeholders — set them to match your manuscript's
+  admixture definitions. Current defaults:
+  - 3-way: AFR+EUR+AMR ≥ 0.90, each ≥ 0.05;
+  - 2-way: AFR+EUR ≥ 0.90, AMR < 0.05;
+  - **plus an explicit cap on the "other" superpops** (`OTHER_MAX` = summed
+    SAS+EAS+MEN+OCN ≤ 0.10, `OTHER_EACH_MAX` = no single one > 0.05). This is the
+    "fourth/other component must be below X" gate you asked for — a participant
+    with meaningful SAS/EAS/MEN/OCN ancestry is *not* a clean AFR-EUR(-AMR)
+    mixture and is dropped to `multiracial_other`.
 - A participant qualifying for both modes defaults to **3-way** (more general).
 
 ## 3. Reference panels (step 8)
@@ -65,7 +74,16 @@ Deliberately light, per the GrafAnc docs (tolerates missingness, no LD pruning):
   SHAPEIT5 and point FLARE at those. Confirm.
 - We run `probs=true` so the panel comparison (step 13) can use posterior
   sharpness.
-- Every cohort is run against **both** panels so the comparison is apples-to-apples.
+- **Run the 2-way and 3-way individuals together (recommended).** `10_run_flare.sh
+  combined <panel>` paints the union cohort against the 3-way EUR/AFR/AMR panel.
+  FLARE assigns per-haplotype ancestry independently, so a genuinely 2-way
+  AFR-EUR person just receives ~0 AMR — which is the correct answer — and you get
+  one run and one output with no cohort split. Phase the combined list once:
+  `09_phase_target.sh flare_admixed_all.samples.txt target_all`. The dedicated
+  `2way` run (EUR/AFR-only panel) is kept only for the panel-fit comparison and
+  for anyone who wants a strict no-AMR model.
+- For the panel benchmark, each mode is still run against **both** the targeted
+  and comparison panels so the comparison is apples-to-apples.
 
 ## 5. Post-processing (steps 11–13)
 

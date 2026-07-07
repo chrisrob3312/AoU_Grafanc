@@ -14,14 +14,22 @@ source "$(dirname "$0")/../config/config.sh"
 FLARE_JAR="${HOME}/tools/flare.jar"
 [[ -f "${FLARE_JAR}" ]] || { mkdir -p "$(dirname "$FLARE_JAR")"; wget -O "${FLARE_JAR}" "${FLARE_JAR_URL}"; }
 
-# ---- pick the run: mode (2way|3way) × panel (targeted|comparison) -----------
-MODE="${1:?usage: 10_run_flare.sh <2way|3way> <targeted|comparison>}"
-PANEL="${2:?usage: 10_run_flare.sh <2way|3way> <targeted|comparison>}"
+# ---- pick the run: mode × panel (targeted|comparison) -----------------------
+# MODE:
+#   combined  RECOMMENDED. Paint all admixed individuals (2-way + 3-way together)
+#             against the 3-way EUR/AFR/AMR panel. A truly 2-way AFR-EUR person
+#             just gets ~0 AMR — correct — so no cohort split is needed.
+#   3way      Only the 3-way cohort, against the EUR/AFR/AMR panel.
+#   2way      Only the 2-way cohort, against an EUR/AFR-only panel (strict
+#             no-AMR model; mainly for the panel comparison in step 13).
+MODE="${1:?usage: 10_run_flare.sh <combined|3way|2way> <targeted|comparison>}"
+PANEL="${2:?usage: 10_run_flare.sh <combined|3way|2way> <targeted|comparison>}"
 
 case "${MODE}" in
-  2way) TGT_PREFIX="target_2way"; PANEL_LABELS="EUR,AFR" ;;
-  3way) TGT_PREFIX="target_3way"; PANEL_LABELS="EUR,AFR,AMR" ;;
-  *) echo "MODE must be 2way or 3way"; exit 1 ;;
+  combined) TGT_PREFIX="target_all";  PANEL_LABELS="EUR,AFR,AMR" ;;
+  3way)     TGT_PREFIX="target_3way"; PANEL_LABELS="EUR,AFR,AMR" ;;
+  2way)     TGT_PREFIX="target_2way"; PANEL_LABELS="EUR,AFR" ;;
+  *) echo "MODE must be combined, 3way, or 2way"; exit 1 ;;
 esac
 
 WORK="${HOME}/flare_run/${MODE}_${PANEL}"; mkdir -p "${WORK}"; cd "${WORK}"

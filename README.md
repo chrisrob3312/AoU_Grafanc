@@ -34,7 +34,7 @@ Built for the Verily Researcher Workbench.
 | 7 | `notebooks/07_define_flare_cohorts.py` | Jupyter (pandas) |
 | 8 | `flare/ref_panel/08_build_ref_panels.sh` | RW terminal (bcftools + SHAPEIT5) |
 | 9 | `flare/09_phase_target.sh <cohort> <prefix>` | RW terminal |
-| 10 | `flare/10_run_flare.sh <2way\|3way> <targeted\|comparison>` | RW terminal (Java) |
+| 10 | `flare/10_run_flare.sh <combined\|3way\|2way> <targeted\|comparison>` | RW terminal (Java) |
 | 11 | `flare/postprocess/11_fill_uncalled_tracts.py` | Jupyter |
 | 12 | `flare/postprocess/12_flare_to_tractor.py` | Jupyter |
 | 13 | `flare/compare/13_panel_accuracy_comparison.py` | Jupyter |
@@ -48,6 +48,11 @@ Built for the Verily Researcher Workbench.
 | Native American | 603 | AMR anchor (ref / eval) |
 | Multiracial (AFR-EUR-AMR) | 800 → step 6/7 | 3-way AFR-EUR-AMR |
 | Multiracial (near AFR-EUR) | 800 → step 6/7 | 2-way AFR-EUR |
+
+> **Tip:** you don't have to split 2-way and 3-way for FLARE. `10_run_flare.sh
+> combined` paints everyone against the 3-way EUR/AFR/AMR panel at once — 2-way
+> AFR-EUR individuals simply get ~0 AMR, which is correct. The separate 2-way run
+> exists only for the panel-fit comparison.
 
 ## What you still need to fill in
 
