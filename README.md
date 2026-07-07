@@ -5,6 +5,8 @@ imputed-array **or** WGS data, then FLARE local-ancestry inference (LAI) for the
 admixed cohorts, post-processed for [Tractor](https://github.com/Atkinson-Lab/Tractor).
 Built for the Verily Researcher Workbench.
 
+![Pipeline schematic](docs/pipeline_schematic.svg)
+
 ## What it does
 
 1. **GrafAnc global ancestry** on the union of imputed + WGS participants, using
