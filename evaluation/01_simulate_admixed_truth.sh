@@ -1,75 +1,50 @@
 #!/usr/bin/env bash
-# Tier 1 (step 1) — simulate admixed individuals with GROUND-TRUTH local ancestry.
+# Tier 1 (step 1) — obtain admix-simu simulated individuals WITH ground-truth
+# local ancestry, and stage them for LAI.
 #
-# haptools simgenotype draws admixed haplotypes from reference founders under a
-# demographic model and writes the TRUE per-haplotype local-ancestry breakpoints
-# (.bp).  We then paint these simulated people with each panel (step 2 of the
-# main FLARE flow) and score against the truth.
-#
-# CRITICAL: founders used to simulate must be HELD OUT of the FLARE reference
-# panel, or accuracy is inflated.  We split reference samples 50/50 by ID:
-# one half = simulation founders, other half = the panel FLARE paints against.
+# You run admix-simu LOCALLY before the AoU work (that's your existing pipeline,
+# matched to Honorato-Mauer et al. 2024). This script (a) ingests those outputs
+# into the workspace bucket, and (b) enforces the critical guard: the simulation
+# FOUNDERS must be held out of the LAI reference panel, or accuracy is inflated.
+# It also documents the admix-simu invocation for reproducibility.
 set -euo pipefail
 source "$(dirname "$0")/../config/config.sh"
 source "$(dirname "$0")/eval_config.sh"
 
 WORK="${HOME}/eval_sim"; mkdir -p "${WORK}"; cd "${WORK}"
 
-# 1. Pull the combined reference callset + homogeneous sample lists.
+# ---- Inputs from your local admix-simu run ----------------------------------
+# For each scenario: the simulated phased haplotypes, the .bp ground truth, and
+# the sample-order (.ids) file that names the individuals in .bp order.
+LOCAL_SIM_PREFIX="<gs://.../admixsimu/{label}/sim_{label}>"   # .hap/.vcf.gz, .bp, .ids
+# The founder sample IDs admix-simu drew from (so we can hold them out).
+SIM_FOUNDERS="<gs://.../admixsimu/founders.samples.txt>"
+
+# Reference build for admix-simu (documented for reproducibility; run locally):
+#   ${ADMIXSIMU_DIR}/simu-mix.pl model_{label}.dat map.txt sim_{label} \
+#       --founder_haps founders.phgeno --founder_info founders.ids
+# where model_{label}.dat encodes SIM_GENERATIONS + the per-pop admixture
+# fractions in SIM_SCENARIOS.
+
+gsutil cp "${SIM_FOUNDERS}" ./founders.keep
+
+for scen in "${SIM_SCENARIOS[@]}"; do
+  label="${scen%%:*}"
+  pfx="${LOCAL_SIM_PREFIX//\{label\}/${label}}"
+  gsutil -m cp "${pfx}".* "${EVAL_SIM_DIR}/${label}/"
+  echo "Ingested admix-simu scenario '${label}' → ${EVAL_SIM_DIR}/${label}/"
+done
+
+# ---- Hold founders out of the LAI reference panel ---------------------------
+# Build the panel-side reference = combined callset MINUS the simulation founders.
 gsutil -m cp "${REF_COMBINED_VCF}"* .
 COMBINED="$(basename "${REF_COMBINED_VCF}")"
-for f in "${REF_HOMOG_EUR_SAMPLES}" "${REF_HOMOG_AFR_SAMPLES}" "${REF_HOMOG_AMR_SAMPLES}"; do
-  gsutil cp "$f" .
-done
-
-# 2. Deterministic 50/50 founder-vs-panel split per ancestry (sort, take alt lines).
-#    (No RNG so the split is reproducible across resumes.)
-split_founders () {  # $1=samples file  -> ${1}.founders / ${1}.panel
-  sort "$1" | awk 'NR%2==1{print > FILENAME".founders"} NR%2==0{print > FILENAME".panel"}' FILENAME="$1"
-}
-for f in *_homog95.samples.txt; do split_founders "$f"; done
-cat ./*_homog95.samples.txt.founders > founders.keep
-cat ./*_homog95.samples.txt.panel    > panel.keep
-
-# 3. Subset the founder VCF (what simgenotype samples from).
-bcftools view -S founders.keep --force-samples "${COMBINED}" \
-  -r "${SIM_CHROM}" -Oz -o founders.${SIM_CHROM}.vcf.gz
-bcftools index -t founders.${SIM_CHROM}.vcf.gz
-
-# 4. Build a sample->superpop map for the founders (simgenotype needs population labels).
-#    AFR/EUR/AMR from the homogeneous lists.
-: > founders.sampleinfo
-awk '{print $1"\tAFR"}' afr_homog95.samples.txt.founders >> founders.sampleinfo
-awk '{print $1"\tEUR"}' eur_homog95.samples.txt.founders >> founders.sampleinfo
-awk '{print $1"\tAMR"}' amr_homog95.samples.txt.founders >> founders.sampleinfo
-
-# 5. Simulate each scenario.  A .dat model file encodes generations + per-pop
-#    admixture fractions; we write one per scenario.
-for scen in "${SIM_SCENARIOS[@]}"; do
-  label="${scen%%:*}"; props="${scen#*:}"
-  IFS=',' read -r p_afr p_eur p_amr <<< "${props}"
-  cat > model_${label}.dat <<EOF
-${SIM_N_INDIV}  Admixed  AFR  EUR  AMR
-${SIM_GENERATIONS}  0  ${p_afr}  ${p_eur}  ${p_amr}
-EOF
-
-  "${HAPTOOLS_BIN}" simgenotype \
-      --model model_${label}.dat \
-      --mapdir "<${GENETIC_MAP_DIR}>" \
-      --chroms "${SIM_CHROM/chr/}" \
-      --ref_vcf founders.${SIM_CHROM}.vcf.gz \
-      --sample_info founders.sampleinfo \
-      --out sim_${label}.vcf.gz
-  # sim_${label}.bp holds the TRUE per-haplotype local ancestry breakpoints.
-  bcftools index -t sim_${label}.vcf.gz
-  gsutil -m cp sim_${label}.vcf.gz* sim_${label}.bp "${EVAL_SIM_DIR}/${label}/"
-done
-
-# 6. Stash the held-out PANEL so FLARE paints against founders it never saw.
-bcftools view -S panel.keep --force-samples "${COMBINED}" \
+bcftools view -S ^founders.keep --force-samples "${COMBINED}" \
   -Oz -o eval_panel.heldout.vcf.gz
 bcftools index -t eval_panel.heldout.vcf.gz
-gsutil -m cp eval_panel.heldout.vcf.gz* panel.keep "${EVAL_SIM_DIR}/"
-echo "Simulated cohorts + ground-truth .bp → ${EVAL_SIM_DIR}/"
-echo "NEXT: phase sim VCFs (step 9) and run FLARE (step 10) with BOTH panels,"
-echo "      restricting the ref panel to panel.keep so founders stay held out."
+gsutil -m cp eval_panel.heldout.vcf.gz* founders.keep "${EVAL_SIM_DIR}/"
+
+echo "Held-out reference panel → ${EVAL_SIM_DIR}/eval_panel.heldout.vcf.gz"
+echo "NEXT (Track A): RFMix1 on the sims  -> 02a_run_rfmix1.sh"
+echo "     (Track B): FLARE on the sims   -> main flow steps 9-10 (restrict ref to held-out panel)"
+echo "     then score both -> 02_score_lai_accuracy.py"

@@ -18,10 +18,24 @@ export SIM_CHROM="chr17"           # chromosome to simulate (SLC16A11 is chr17)
 # Admixture proportions per scenario "label:AFR,EUR,AMR"
 export SIM_SCENARIOS=("afr_eur:0.5,0.5,0.0" "afr_eur_amr:0.25,0.45,0.30")
 
+# ---- Two-track evaluation design -------------------------------------------
+# TRACK A (accuracy yardstick): admix-simu + RFMix1, scored with the metrics of
+#   Honorato-Mauer et al. 2024 (AJHG; "Characterizing features affecting local
+#   ancestry inference performance in admixed populations") so our AMR-accuracy
+#   numbers are directly comparable to that prior benchmark. That paper shows
+#   AMR tracts are the weak spot (TPR ~88-94% vs 96-99% EUR/AFR) with miscalls
+#   biased AMR->EUR, attributed to the SMALL AMR reference size -- exactly the
+#   gap MX Biobank fills.
+# TRACK B (biobank scale): FLARE for the actual AoU run (RFMix1 does not scale to
+#   AoU N). A FLARE-vs-RFMix1 concordance on the simulated data shows FLARE
+#   reproduces the RFMix1 accuracy while scaling.
+
 # ---- Tools -----------------------------------------------------------------
-# haptools simgenotype: simulate admixed haplotypes WITH ground-truth local
-# ancestry breakpoints.  pip install haptools
-export HAPTOOLS_BIN="${HAPTOOLS_BIN:-haptools}"
+# admix-simu (Williams/Martin): simulate admixed haplotypes WITH ground-truth
+# breakpoints. Run LOCALLY before the AoU work; we ingest its outputs here.
+export ADMIXSIMU_DIR="${ADMIXSIMU_DIR:-${HOME}/tools/admix-simu}"   # has simu-mix.pl
+# RFMix v1 (Track A accuracy benchmark, matches Honorato-Mauer).
+export RFMIX1_DIR="${RFMIX1_DIR:-${HOME}/tools/RFMix_v1.5.4}"       # has RunRFMix.py
 export TRACTOR_DIR="${HOME}/tools/Tractor"      # git clone of Atkinson-Lab/Tractor
 
 # ---- Positive-control loci (Tier 3). GRCh38. --------------------------------

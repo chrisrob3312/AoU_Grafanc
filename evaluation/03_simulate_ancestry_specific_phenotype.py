@@ -24,13 +24,13 @@ import pysam
 from truth_utils import read_truth_bp, truth_at_positions
 
 
-def alt_copies_by_ancestry(sim_vcf, truth_bp, causal_pos):
+def alt_copies_by_ancestry(sim_vcf, truth_bp, truth_ids, causal_pos):
     """
     For each individual, count ALT copies of the causal variant on each ancestry
     background, using the phased sim genotypes + the true local ancestry at the
     causal position. Returns DataFrame[person_id, n_EUR, n_AFR, n_AMR].
     """
-    truth = read_truth_bp(truth_bp)
+    truth = read_truth_bp(truth_bp, truth_ids)
 
     vcf = pysam.VariantFile(sim_vcf)
     samples = list(vcf.header.samples)
@@ -57,7 +57,8 @@ def alt_copies_by_ancestry(sim_vcf, truth_bp, causal_pos):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sim_vcf", required=True, help="phased simulated genotypes")
-    ap.add_argument("--truth_bp", required=True, help="haptools ground-truth breakpoints")
+    ap.add_argument("--truth_bp", required=True, help="admix-simu ground-truth breakpoints")
+    ap.add_argument("--truth_ids", required=True, help="admix-simu sample-order file")
     ap.add_argument("--causal_pos", type=int, required=True, help="b38 pos of the causal variant")
     ap.add_argument("--beta_amr", type=float, default=0.5, help="AMR-specific effect")
     ap.add_argument("--beta_eur", type=float, default=0.0)
@@ -67,7 +68,7 @@ def main():
     ap.add_argument("--out_prefix", default="sim_pheno")
     args = ap.parse_args()
 
-    counts = alt_copies_by_ancestry(args.sim_vcf, args.truth_bp, args.causal_pos)
+    counts = alt_copies_by_ancestry(args.sim_vcf, args.truth_bp, args.truth_ids, args.causal_pos)
 
     rng = np.random.default_rng(args.seed)
     genetic = (args.beta_eur * counts["n_EUR"]
