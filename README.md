@@ -47,6 +47,15 @@ Verily Workbench, and which environment each step runs in.
 | 12 | `flare/postprocess/12_flare_to_tractor.py` | Jupyter |
 | 13 | `flare/compare/13_panel_accuracy_comparison.py` | Jupyter |
 
+## Evaluating the reference panels
+
+Is the MXB-augmented AMR panel actually better? See
+**[`evaluation/`](evaluation/README.md)** — a four-tier framework: (1) LAI
+accuracy vs simulated ground truth, (2) a panel-vs-panel Tractor GWAS on a
+simulated ancestry-specific phenotype, (3) real positive-control loci
+(SLC16A11, ABCA1, with AFR/EUR specificity controls), and (4) genome-wide
+calibration + admixture mapping.
+
 ## Cohort → FLARE mode map
 
 | GrafAnc group | AncGroupID | FLARE |
