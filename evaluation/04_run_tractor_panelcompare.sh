@@ -20,7 +20,11 @@ PHENO="${2:?pass the simulated phenotype file from step 3}"
 WORK="${HOME}/eval_gwas/${SCENARIO}"; mkdir -p "${WORK}"; cd "${WORK}"
 gsutil cp "${PHENO}" ./pheno.tsv
 
-for PANEL in targeted comparison; do
+# Iterate over every panel arm in EVAL_PANELS (mxb_expanded, amr_small_homog,
+# amr_large_admixed, aou_default_1kg) so the Tractor comparison covers the full
+# matrix, not just two panels.
+for entry in "${EVAL_PANELS[@]}"; do
+  PANEL="${entry%%|*}"
   echo "=== Tractor GWAS: ${SCENARIO} / ${PANEL} panel ==="
   # 1. Convert this panel's FLARE output to Tractor inputs (main-flow steps 11-12).
   python "$(dirname "$0")/../flare/postprocess/11_fill_uncalled_tracts.py" \
@@ -42,4 +46,4 @@ for PANEL in targeted comparison; do
 
   gsutil cp "gwas_${PANEL}.tsv" "${EVAL_GWAS_DIR}/${SCENARIO}/"
 done
-echo "Both panels done. Compare with 05_gwas_power_bias.py"
+echo "All panel arms done. Compare with 05_gwas_power_bias.py"

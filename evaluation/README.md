@@ -1,43 +1,60 @@
 # Evaluation — is the MXB-augmented AMR reference panel actually better?
 
-Goal: quantify the value of the **targeted** (1KG-HGDP + MX Biobank, >95%
-homogeneous AMR) reference panel over a **comparison** (broad/admixed AMR, no
-MXB) panel for local-ancestry inference (LAI) and the downstream Tractor GWAS.
+Goal: show that an **expanded, well-matched Amerindigenous** reference panel
+(1KG-HGDP + MX Biobank) gives better local-ancestry tracts for a **Latin
+American** cohort — and better downstream discovery — than the alternatives,
+**including the 1KG-style panel AoU will likely ship for CDR v9**.
 
-## Two-track design
+## Design
 
-- **Track A — accuracy yardstick: admix-simu + RFMix1.** We benchmark LAI
-  accuracy with **RFMix v1** on **admix-simu** ground truth, using the metrics of
-  **Honorato-Mauer et al. 2024** (AJHG, *Characterizing features affecting local
-  ancestry inference performance in admixed populations*; bioRxiv
-  2024.08.26.609770 / PMC11866949). That study is the motivation: **AMR/Native
-  American tracts are the weak spot** (TPR ~88–94% vs 96–99% EUR/AFR) with
-  miscalls biased **AMR→EUR**, which they attribute to the **small AMR reference
-  sample size** — exactly the gap MX Biobank fills. So the headline Track-A
-  result is: does adding MXB **raise AMR TPR and shrink the AMR→EUR miscall
-  asymmetry**, comparably measured to that paper?
-- **Track B — biobank scale: FLARE.** RFMix1 does not scale to AoU N; FLARE does.
-  We run FLARE on the same simulated data and on real AoU, and check
-  **FLARE-vs-RFMix1 concordance** on the sims to show FLARE reproduces the
-  RFMix1 accuracy while scaling. The improved MXB panel is what FLARE then
-  carries at biobank scale.
+- **Why FLARE for AoU:** it is far less cumbersome to run inside the AoU
+  workbench than RFMix — a practical choice, not an accuracy/scaling claim.
+- **Why RFMix1 appears at all:** the pre-AoU simulation accuracy benchmark uses
+  **RFMix v1** on **admix-simu** truth so it is directly comparable to
+  **Honorato-Mauer et al. 2024** (AJHG; bioRxiv 2024.08.26.609770 / PMC11866949).
+  That study is the motivation: **AMR tracts are the weak spot** (TPR ~88–94% vs
+  96–99% EUR/AFR), miscalls biased **AMR→EUR**, attributed to **small AMR
+  reference size** — the gap MX Biobank fills.
+
+### The core comparison: panels within FLARE
+
+Do we get **different (and better) tracts** for a Latin American cohort with the
+expanded MXB panel than with the alternatives? The arms (`EVAL_PANELS`)
+deliberately **disentangle size vs matching**:
+
+| Arm | AMR reference | Isolates |
+|-----|---------------|----------|
+| `mxb_expanded` | 1KG-HGDP + MXB, homogeneous | the proposal (large **and** matched) |
+| `amr_small_homog` | few but pure Amerindigenous | matching alone (low N) |
+| `amr_large_admixed` | many but admixed (1KG MXL/PEL/CLM) | size alone (contaminated) |
+| `aou_default_1kg` | 1KG-style baseline | **what AoU CDR v9 will likely ship** |
+
+`aou_default_1kg` is the key reference point — every result is framed as *what a
+user gains over the tracts AoU itself provides*. And because Honorato-Mauer
+blamed AMR **size**, the small-homog vs large-admixed vs MXB contrast shows
+whether **size, matching, or both** is what actually matters.
 
 Guiding principle: **real AoU data has no ground truth for local ancestry**, so
-the cleanest evidence is simulation; real positive-control loci are
-corroboration. And you must test at loci where the signal lives on the
-**Amerindigenous** background, or a better AMR panel has nothing to show.
+simulation gives the accuracy verdict, and real AoU data shows the
+**consequences** — different tracts (step 8), stronger known-locus signal
+(step 6), and candidate novel discovery (step 9). Test where the signal lives on
+the **Amerindigenous** background, or a better AMR panel has nothing to show.
 
-## Four tiers
+## Steps
 
-| Tier | Question | Ground truth? | Files |
-|------|----------|---------------|-------|
-| 1 | Does the MXB panel call AMR **tracts** more accurately (RFMix1 vs Honorato-Mauer metrics; FLARE-vs-RFMix1 concordance)? | Yes (admix-simu) | `01_simulate_admixed_truth.sh`, `02a_run_rfmix1.sh`, `02_score_lai_accuracy.py` |
-| 2 | Does better LAI improve a **Tractor GWAS** with a known ancestry-specific effect? | Yes (injected) | `03_simulate_ancestry_specific_phenotype.py`, `04_run_tractor_panelcompare.sh`, `05_gwas_power_bias.py` |
-| 3 | Does it reproduce on **real** AMR-enriched loci? | No (published effects) | `06_realdata_positive_controls.py` |
-| 4 | Genome-wide **calibration / robustness / extra value** | mixed | `07_robustness_and_value.py` |
+| # | Question | Ground truth? | Files |
+|---|----------|---------------|-------|
+| 1 | Accuracy vs admix-simu truth — RFMix1 (Honorato-Mauer metrics) + FLARE, all panel arms; per-ancestry TPR and the AMR→EUR miscall asymmetry | Yes (admix-simu) | `01_simulate_admixed_truth.sh`, `02a_run_rfmix1.sh`, `02_score_lai_accuracy.py` |
+| 8 | **Do the tracts actually differ across panels** on real AoU data (and where)? | No | `08_tract_differences.py` |
+| 2 | Does better LAI improve a **Tractor GWAS** with a known injected ancestry-specific effect? | Yes (injected) | `03_..._phenotype.py`, `04_run_tractor_panelcompare.sh`, `05_gwas_power_bias.py` |
+| 6 | **Known LAI regional association** — stronger AMR-track signal at real AMR-enriched loci? | No (published effects) | `06_realdata_positive_controls.py` |
+| 9 | **Novel discovery** — AMR-track hits MXB finds that AoU-default misses (calibration-gated) | No | `09_novel_discovery.py` |
+| 7 | Genome-wide calibration / admixture mapping / global-vs-local consistency | mixed | `07_robustness_and_value.py` |
 
-**Lead result** = Tier 2 (panel-vs-panel Tractor on a simulated ancestry-specific
-phenotype), backed by Tier 1 LAI accuracy, validated on 2–3 Tier-3 loci.
+**Story arc:** simulation accuracy (1) → tracts really change (8) → that changes
+GWAS results causally (2) → it strengthens a known real signal (6) → and may
+surface novel Latin American hits over the AoU-default panel (9), with
+calibration guardrails throughout.
 
 ## Positive-control loci (config in `eval_config.sh`)
 

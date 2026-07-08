@@ -56,8 +56,8 @@ def summarize(path, causal_pos, truth):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--gwas_targeted", required=True)
-    ap.add_argument("--gwas_comparison", required=True)
+    ap.add_argument("--gwas", action="append", required=True,
+                    help="label=path Tractor GWAS (repeat for each panel arm)")
     ap.add_argument("--truth", required=True, help="*.truth.tsv from step 3")
     ap.add_argument("--out", default="panel_gwas_comparison.tsv")
     args = ap.parse_args()
@@ -65,14 +65,16 @@ def main():
     truth = pd.read_csv(args.truth, sep="\t").iloc[0]
     causal = int(truth["causal_pos"])
     rows = []
-    for name, path in [("targeted", args.gwas_targeted), ("comparison", args.gwas_comparison)]:
+    for spec in args.gwas:                      # e.g. mxb_expanded=gwas_mxb_expanded.tsv
+        name, path = spec.split("=", 1)
         rows.append({"panel": name, **summarize(path, causal, truth)})
     out = pd.DataFrame(rows)
     out.to_csv(args.out, sep="\t", index=False)
     print(f"Injected AMR beta = {truth['beta_AMR']}")
     print(out.to_string(index=False))
-    print("\nBetter panel: higher AMR_power, smaller |AMR_beta_bias| and leakage, "
-          "lambda≈1, smaller peak distance.")
+    print("\nBest panel for Latin American discovery: higher AMR_power, smaller "
+          "|AMR_beta_bias| and leakage, lambda≈1, smaller peak distance. Read "
+          "mxb_expanded vs aou_default_1kg for the gain over the tracts AoU ships.")
 
 
 if __name__ == "__main__":

@@ -41,28 +41,30 @@ def effect_at(gwas_path, chrom, pos, ancestry):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--gwas_targeted", required=True, help="real-cohort Tractor GWAS, targeted panel")
-    ap.add_argument("--gwas_comparison", required=True, help="real-cohort Tractor GWAS, comparison panel")
+    ap.add_argument("--gwas", action="append", required=True,
+                    help="label=path real-cohort Tractor GWAS (repeat per panel arm)")
     ap.add_argument("--loci", nargs="*", help="override: name,chrom,pos,ancestry per token")
     ap.add_argument("--out", default="realdata_positive_controls.tsv")
     args = ap.parse_args()
 
+    panels = [spec.split("=", 1) for spec in args.gwas]     # [(label, path), ...]
     loci = LOCI if not args.loci else [t.split(",") for t in args.loci]
     rows = []
     for parts in loci:
         name, chrom, pos, ancestry = parts[0], parts[1], int(parts[2]), parts[4] if len(parts) > 4 else parts[3]
         row = {"locus": name, "chrom": chrom, "pos": pos, "expected_ancestry": ancestry}
-        row.update({f"targeted_{k}": v for k, v in effect_at(args.gwas_targeted, chrom, pos, ancestry).items()})
-        row.update({f"comparison_{k}": v for k, v in effect_at(args.gwas_comparison, chrom, pos, ancestry).items()})
+        for label, path in panels:
+            row.update({f"{label}_{k}": v for k, v in effect_at(path, chrom, pos, ancestry).items()})
         rows.append(row)
 
     out = pd.DataFrame(rows)
     out.to_csv(args.out, sep="\t", index=False)
-    pd.set_option("display.width", 200)
+    pd.set_option("display.width", 240)
     print(out.to_string(index=False))
-    print("\nExpectation: at AMR loci (SLC16A11, ABCA1) the targeted panel gives a "
-          "larger AMR-track -log10p and effect nearer the published value; at "
-          "AFR/EUR control loci the two panels should agree (specificity).")
+    print("\nExpectation: at AMR loci (SLC16A11, ABCA1) the mxb_expanded panel gives "
+          "a larger AMR-track -log10p and effect nearer the published value than the "
+          "aou_default_1kg baseline; at AFR/EUR control loci all panels should agree "
+          "(specificity — the AMR panel shouldn't move non-AMR signals).")
 
 
 if __name__ == "__main__":
