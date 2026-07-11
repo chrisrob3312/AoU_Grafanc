@@ -39,12 +39,15 @@ export SIM_SCENARIOS=("afr_eur:0.5,0.5,0.0" "afr_eur_amr:0.25,0.45,0.30")
 #     likely WITHOUT an expanded Amerindigenous panel (probably 1KG-based) -- so
 #     this arm shows what a user gains over the tracts AoU itself will ship.
 #
-# label | reference-sample keep-list (built in flare/ref_panel step 8 variants)
+# label | reference-sample keep-list. mxb_expanded and amr_small_homog are built
+# by reference/build_panels.sh from the committed homogeneous lists (their diff
+# is exactly the 50 MXB samples). The other two need external AMR references.
+REF_PANELS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../reference/panels" 2>/dev/null && pwd || echo '<repo>/reference/panels')"
 export EVAL_PANELS=(
-  "mxb_expanded|<gs://.../ref/mxb_expanded.keep>"       # 1KG-HGDP + MXB, homogeneous AMR (proposal)
-  "amr_small_homog|<gs://.../ref/amr_small_homog.keep>" # few but pure Amerindigenous AMR
-  "amr_large_admixed|<gs://.../ref/amr_large_admixed.keep>" # many but admixed AMR (e.g. 1KG MXL/PEL/CLM)
-  "aou_default_1kg|<gs://.../ref/aou_default_1kg.keep>" # 1KG-style baseline ~ what AoU v9 will ship
+  "mxb_expanded|${REF_PANELS_DIR}/mxb_expanded.keep"       # AFR+EUR+AMR(88 incl 50 MXB) -- proposal
+  "amr_small_homog|${REF_PANELS_DIR}/amr_small_homog.keep" # AFR+EUR+AMR(38, MXB removed) -- matching, low N
+  "amr_large_admixed|<gs://.../ref/amr_large_admixed.keep>" # many but admixed AMR (1KG MXL/PEL/CLM) -- supply
+  "aou_default_1kg|<gs://.../ref/aou_default_1kg.keep>" # 1KG-style baseline ~ what AoU v9 ships -- supply
 )
 # Which arm is the reference point for "improvement over what AoU ships":
 export EVAL_BASELINE_PANEL="aou_default_1kg"

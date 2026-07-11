@@ -76,15 +76,20 @@ export QC_IMPUTED_MIN_R2=0.80     # imputation quality (INFO/R2) floor
 # Combined joint-called 1KG-HGDP + 50 MX Biobank WGS callset (your local build).
 export REF_COMBINED_VCF="<gs://.../1kg_hgdp_mxb.joint.vcf.gz>"
 
-# Sample lists produced by your LOCAL ADMIXTURE run (>95% homogeneous).
-# One sample ID per line.  Pending — drop them in when the HPC run finishes.
-export REF_HOMOG_EUR_SAMPLES="<gs://.../admixture/eur_homog95.samples.txt>"
-export REF_HOMOG_AFR_SAMPLES="<gs://.../admixture/afr_homog95.samples.txt>"
-export REF_HOMOG_AMR_SAMPLES="<gs://.../admixture/amr_homog95.samples.txt>"
+# Homogeneous per-super-pop reference lists from the local ADMIXTURE homogeneity
+# screen — committed in reference/homog_by_super_pop/ (AFR 634, AMR 88 incl. 50
+# MXB, EAS 667, EUR 620, SAS 48). Copy these into the workspace bucket, or point
+# at the repo copies. AMR (88) IS the expanded/MXB panel; drop MXB_* for the
+# small-homogeneous arm (reference/build_panels.sh does the split).
+REF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../reference" 2>/dev/null && pwd || echo '<repo>/reference')"
+export REF_HOMOG_EUR_SAMPLES="${REF_HOMOG_EUR_SAMPLES:-${REF_DIR}/homog_by_super_pop/EUR_ids.txt}"
+export REF_HOMOG_AFR_SAMPLES="${REF_HOMOG_AFR_SAMPLES:-${REF_DIR}/homog_by_super_pop/AFR_ids.txt}"
+export REF_HOMOG_AMR_SAMPLES="${REF_HOMOG_AMR_SAMPLES:-${REF_DIR}/homog_by_super_pop/AMR_ids.txt}"
 
-# Comparison ("less-fitting") panel: larger AMR set WITHOUT the MXB samples,
-# or with more-admixed AMR, to benchmark the targeted panel against.
-export REF_COMPARISON_AMR_SAMPLES="<gs://.../admixture/amr_broad.samples.txt>"
+# Comparison ("less-fitting") AMR panel: the 38 non-MXB Amerindigenous from the
+# homogeneity panel (matched but small). For the larger/admixed and 1KG-default
+# arms, supply external AMR lists (see reference/README.md + evaluation/).
+export REF_COMPARISON_AMR_SAMPLES="${REF_COMPARISON_AMR_SAMPLES:-${REF_DIR}/panels/AMR_nonmxb.txt}"
 
 # Genetic map for FLARE / phasing (GRCh38, PLINK format cM map per chrom).
 export GENETIC_MAP_DIR="<gs://.../genetic_maps/plink.GRCh38>"

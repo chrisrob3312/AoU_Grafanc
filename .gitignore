@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 *.pyo
 .ipynb_checkpoints/
+
+# Derived reference-panel keep-lists (regenerate with reference/build_panels.sh)
+reference/panels/
